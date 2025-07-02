@@ -18,11 +18,18 @@ router.get(
   weatherController.getAllCachedCities
 );
 
-// DELETE /weather/cache - Reset all cache
+// DELETE /weather/cache/all - Reset all cache
 router.delete(
-  "/cache",
+  "/cache/all",
   validationMiddleware.validateRedisConnection,
   weatherController.resetCache
+);
+
+// DELETE /weather/cache/:key - Delete specific cache key
+router.delete(
+  "/cache/:key",
+  validationMiddleware.validateRedisConnection,
+  weatherController.deleteKey
 );
 
 module.exports = router;

@@ -83,6 +83,45 @@ class WeatherController {
       res.status(500).json({ error: "Internal server error" });
     }
   }
+
+  async deleteKey(req, res) {
+    try {
+      const { key } = req.params;
+
+      if (!key) {
+        return res
+          .status(400)
+          .json({ error: "Cache key parameter is required" });
+      }
+
+      const exists = await cacheService.exists(key);
+      if (!exists) {
+        return res.status(404).json({
+          error: "Cache key not found",
+          key: key,
+        });
+      }
+
+      const success = await cacheService.delete(key);
+
+      if (success) {
+        res.json({
+          message: "Cache key deleted successfully",
+          status: "success",
+          key: key,
+        });
+      } else {
+        res.status(500).json({
+          error: "Failed to delete cache key",
+          status: "error",
+          key: key,
+        });
+      }
+    } catch (error) {
+      console.error("Delete key error:", error.message);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
 }
 
 module.exports = new WeatherController();
