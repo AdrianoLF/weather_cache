@@ -1,31 +1,31 @@
 const redisConfig = require("../config/redis");
 
 class CacheService {
-  constructor() {
-    this.defaultTTL = parseInt(process.env.CACHE_TTL_SECONDS) || 600; // 10 minutes default
-  }
+  #defaultTTL;
 
-  getClient() {
-    return redisConfig.getClient();
+  constructor() {
+    this.#defaultTTL = parseInt(process.env.CACHE_TTL_SECONDS) || 600;
   }
 
   async get(key) {
     try {
-      const client = this.getClient();
-      const data = await client.get(key);
-      return data ? JSON.parse(data) : null;
+      const data = await this.#getRawData(key);
+      if (!data) return null;
+
+      const parsed = JSON.parse(data);
+      return parsed.data;
     } catch (error) {
       console.error("Cache get error:", error);
       return null;
     }
   }
 
-  async set(key, value, ttl = this.defaultTTL) {
+  async set(key, value, ttl = this.#defaultTTL) {
     try {
-      const client = this.getClient();
-      const serializedValue = JSON.stringify(value);
+      const valueWithExpiration = this.#prepareDataForCache(value, ttl);
+      const serializedValue = JSON.stringify(valueWithExpiration);
 
-      await client.setEx(key, ttl, serializedValue);
+      await this.#getClient().setEx(key, ttl, serializedValue);
       console.log(`Cache set: ${key} (TTL: ${ttl}s)`);
       return true;
     } catch (error) {
@@ -36,8 +36,7 @@ class CacheService {
 
   async delete(key) {
     try {
-      const client = this.getClient();
-      const result = await client.del(key);
+      const result = await this.#getClient().del(key);
       console.log(`Cache delete: ${key} (deleted: ${result})`);
       return result > 0;
     } catch (error) {
@@ -46,28 +45,26 @@ class CacheService {
     }
   }
 
-  async update(key, value, extendTTL = false, newTTL = this.defaultTTL) {
+  async update(key, value, extendTTL = false, newTTL = this.#defaultTTL) {
     try {
-      const client = this.getClient();
-      const exists = await client.exists(key);
-
-      if (!exists) {
+      if (!(await this.exists(key))) {
         return false;
       }
 
-      const serializedValue = JSON.stringify(value);
+      const valueWithExpiration = this.#prepareDataForCache(value, newTTL);
+      const serializedValue = JSON.stringify(valueWithExpiration);
 
       if (extendTTL) {
-        await client.setEx(key, newTTL, serializedValue);
+        await this.#getClient().setEx(key, newTTL, serializedValue);
         console.log(
           `Cache update with TTL extension: ${key} (TTL: ${newTTL}s)`
         );
       } else {
-        const currentTTL = await client.ttl(key);
+        const currentTTL = await this.#getCurrentTTL(key);
         if (currentTTL > 0) {
-          await client.setEx(key, currentTTL, serializedValue);
+          await this.#getClient().setEx(key, currentTTL, serializedValue);
         } else {
-          await client.set(key, serializedValue);
+          await this.#getClient().set(key, serializedValue);
         }
         console.log(`Cache update: ${key}`);
       }
@@ -81,52 +78,31 @@ class CacheService {
 
   async exists(key) {
     try {
-      const client = this.getClient();
-      return await client.exists(key);
+      return await this.#getClient().exists(key);
     } catch (error) {
       console.error("Cache exists error:", error);
       return false;
     }
   }
 
-  async getTTL(key) {
-    try {
-      const client = this.getClient();
-      return await client.ttl(key);
-    } catch (error) {
-      console.error("Cache TTL error:", error);
-      return -1;
-    }
-  }
-
-  async getKeys(pattern = "*") {
-    try {
-      const client = this.getClient();
-      return await client.keys(pattern);
-    } catch (error) {
-      console.error("Cache keys error:", error);
-      return [];
-    }
-  }
-
   async getAllCityData() {
     try {
-      const keys = await this.getKeys("city_*");
+      const keys = await this.#getKeysByPattern("city_*");
       const cities = [];
 
       for (const key of keys) {
-        const data = await this.get(key);
-        const ttl = await this.getTTL(key);
+        const fullData = await this.getDataWithExpiration(key);
+        if (!fullData) continue;
 
-        // Use the official city name from the API data
-        const cityName =
-          data && data.name ? data.name : key.replace("city_", "");
+        const ttl = await this.#getCurrentTTL(key);
+        const cityName = this.#extractCityName(fullData.data, key);
 
         cities.push({
           city: cityName,
           key: key,
-          data: data,
-          ttl: ttl,
+          data: fullData.data,
+          ttl: ttl.ttl,
+          expiresAt: fullData.expiresAt,
         });
       }
 
@@ -138,20 +114,103 @@ class CacheService {
   }
 
   createCacheKey(prefix, identifier) {
-    // Normalize the identifier: lowercase, replace spaces with underscores, remove accents
-    const normalized = identifier
+    return `${prefix}_${this.#normalizeIdentifier(identifier)}`;
+  }
+
+  async getDataWithExpiration(key) {
+    const data = await this.#getRawData(key);
+    return data ? JSON.parse(data) : null;
+  }
+
+  #getClient() {
+    return redisConfig.getClient();
+  }
+
+  async #getRawData(key) {
+    return await this.#getClient().get(key);
+  }
+
+  #prepareDataForCache(value, ttl) {
+    const expirationDate = new Date(Date.now() + ttl * 1000);
+    return {
+      data: value,
+      expiresAt: this.#formatDate(expirationDate),
+    };
+  }
+
+  async #getCurrentTTL(key) {
+    try {
+      const ttl = await this.#getClient().ttl(key);
+
+      if (ttl > 0) {
+        const expirationDate = new Date(Date.now() + ttl * 1000);
+        return {
+          ttl,
+          expiresAt: this.#formatDate(expirationDate),
+        };
+      }
+
+      return {
+        ttl: -1,
+        expiresAt: null,
+      };
+    } catch (error) {
+      console.error("Cache TTL error:", error);
+      return {
+        ttl: -1,
+        expiresAt: null,
+      };
+    }
+  }
+
+  async #getKeysByPattern(pattern = "*") {
+    try {
+      return await this.#getClient().keys(pattern);
+    } catch (error) {
+      console.error("Cache keys error:", error);
+      return [];
+    }
+  }
+
+  #normalizeIdentifier(identifier) {
+    return identifier
       .toLowerCase()
       .replace(/\s+/g, "_")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
+  }
 
-    return `${prefix}_${normalized}`;
+  #formatDate(date) {
+    return date.toISOString().split(".")[0] + "Z";
+  }
+
+  #extractCityName(data, key) {
+    return data?.name || key.replace("city_", "");
+  }
+
+  async refreshCache(key) {
+    try {
+      const data = await this.getDataWithExpiration(key);
+      if (!data) {
+        throw new Error("Cache key not found");
+      }
+
+      const cityName = this.#extractCityName(data.data, key);
+
+      return {
+        key,
+        cityName,
+        previousData: data,
+      };
+    } catch (error) {
+      console.error("Refresh cache error:", error);
+      throw error;
+    }
   }
 
   async resetCache() {
     try {
-      const client = this.getClient();
-      await client.flushAll();
+      await this.#getClient().flushAll();
       console.log("Cache reset: All data cleared");
       return true;
     } catch (error) {

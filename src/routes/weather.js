@@ -32,4 +32,11 @@ router.delete(
   weatherController.deleteKey
 );
 
+// PUT /weather/cache/:key/refresh - Refresh specific city cache
+router.put(
+  "/cache/:key/refresh",
+  validationMiddleware.validateWeatherRequest,
+  weatherController.refreshCityCache
+);
+
 module.exports = router;

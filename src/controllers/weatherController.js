@@ -25,20 +25,19 @@ class WeatherController {
       const weatherData = response.data;
 
       await cacheService.set(cacheKey, weatherData);
+      const cachedData = await cacheService.getDataWithExpiration(cacheKey);
 
-      console.log("API call for Brazilian city:", weatherData.name);
       res.status(201).json({
         message: "Brazilian city data cached successfully",
         city: weatherData.name,
         key: cacheKey,
-        ttl: cacheService.defaultTTL,
         data: weatherData,
+        expiresAt: cachedData.expiresAt,
       });
     } catch (error) {
       console.error("Create city error:", error.message);
 
       if (error.response && error.response.status === 404) {
-        console.log(error.response.data);
         return res
           .status(404)
           .json({ error: "Brazilian city not found in weather API" });
@@ -119,6 +118,55 @@ class WeatherController {
       }
     } catch (error) {
       console.error("Delete key error:", error.message);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  async refreshCityCache(req, res) {
+    try {
+      const { key } = req.params;
+
+      if (!key) {
+        return res
+          .status(400)
+          .json({ error: "Cache key parameter is required" });
+      }
+
+      const cacheInfo = await cacheService.refreshCache(key);
+
+      const API_KEY = process.env.OPENWEATHER_API_KEY;
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${cacheInfo.cityName},BR&appid=${API_KEY}&units=metric&lang=en`;
+
+      const response = await axios.get(url);
+      const weatherData = response.data;
+
+      await cacheService.set(key, weatherData);
+      const newCachedData = await cacheService.getDataWithExpiration(key);
+
+      res.json({
+        message: "Cache refreshed successfully",
+        status: "success",
+        key: key,
+        previousData: cacheInfo.previousData.data,
+        newData: weatherData,
+        expiresAt: newCachedData.expiresAt,
+      });
+    } catch (error) {
+      console.error("Refresh cache error:", error.message);
+
+      if (error.message === "Cache key not found") {
+        return res.status(404).json({
+          error: "Cache key not found",
+          key: req.params.key,
+        });
+      }
+
+      if (error.response && error.response.status === 404) {
+        return res
+          .status(404)
+          .json({ error: "Brazilian city not found in weather API" });
+      }
+
       res.status(500).json({ error: "Internal server error" });
     }
   }
