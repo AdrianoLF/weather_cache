@@ -1,0 +1,283 @@
+openapi: 3.0.0
+info:
+  title: Weather Cache API
+  description: Simple API for caching Brazilian cities weather data using Redis
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+paths:
+  /:
+    get:
+      summary: Health check
+      description: Returns server status and available endpoints
+      responses:
+        "200":
+          description: Server status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  endpoints:
+                    type: object
+
+  /weather:
+    post:
+      summary: Create city cache
+      description: Cache weather data for a Brazilian city
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - city
+              properties:
+                city:
+                  type: string
+                  description: Brazilian city name
+                  example: "São Paulo"
+      responses:
+        "201":
+          description: City data cached successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  city:
+                    type: string
+                  key:
+                    type: string
+                  data:
+                    type: object
+                  expiresAt:
+                    type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: City not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+    get:
+      summary: Get all cached cities
+      description: Retrieve all cached Brazilian cities
+      responses:
+        "200":
+          description: List of cached cities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  count:
+                    type: integer
+                  cities:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        city:
+                          type: string
+                        key:
+                          type: string
+                        data:
+                          type: object
+                        ttl:
+                          type: integer
+                        expiresAt:
+                          type: string
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /weather/cache/all:
+    delete:
+      summary: Reset all cache
+      description: Delete all cached data
+      responses:
+        "200":
+          description: Cache reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+        "500":
+          description: Failed to reset cache
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "503":
+          description: Redis service unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /weather/cache/{key}:
+    delete:
+      summary: Delete specific cache key
+      description: Delete a specific cached entry by key
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Cache key to delete
+          schema:
+            type: string
+          example: "city_saopaulo"
+      responses:
+        "200":
+          description: Cache key deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+                  key:
+                    type: string
+        "400":
+          description: Missing cache key parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Cache key not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  key:
+                    type: string
+        "500":
+          description: Failed to delete cache key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /weather/cache/{key}/refresh:
+    put:
+      summary: Refresh specific city cache
+      description: Refresh cached weather data for a specific city by making a new API call
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Cache key to refresh
+          schema:
+            type: string
+          example: "city_saopaulo"
+      responses:
+        "200":
+          description: Cache refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+                  key:
+                    type: string
+                  previousData:
+                    type: object
+                  newData:
+                    type: object
+                  expiresAt:
+                    type: string
+        "400":
+          description: Missing cache key parameter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Cache key not found or city not found in API
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  key:
+                    type: string
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
