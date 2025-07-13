@@ -83,7 +83,7 @@ class WeatherController {
     }
   }
 
-  async deleteKey(req, res) {
+  /*async deleteKey(req, res) {
     try {
       const { key } = req.params;
 
@@ -116,6 +116,34 @@ class WeatherController {
           key: key,
         });
       }
+    } catch (error) {
+      console.error("Delete key error:", error.message);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }*/
+
+  async deleteKey(req, res) {
+    try {
+      const { key } = req.params;
+
+      if (!key) {
+        return res
+          .status(400)
+          .json({ error: "Cache key parameter is required" });
+      }
+
+      // A verificação de existência foi removida.
+      // Apenas tentamos deletar a chave diretamente.
+      await cacheService.delete(key);
+
+      // Sempre retornamos uma mensagem de sucesso, pois o estado final é o desejado:
+      // a chave não está mais no cache.
+      res.json({
+        message: "Cache key successfully removed or did not exist",
+        status: "success",
+        key: key,
+      });
+
     } catch (error) {
       console.error("Delete key error:", error.message);
       res.status(500).json({ error: "Internal server error" });

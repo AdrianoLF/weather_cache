@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Clima nas Cidades</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Consulta de Clima</h1>
+        
+        <div class="search">
+            <input type="text" id="cidade-input" placeholder="Digite o nome da cidade" />
+            <button id="search-btn"><img src="image/magnifier.png" alt="Buscar"></button>
+        </div>
+
+        <div class="massage-area">
+            <p id="mensagem-info" class="info hidden"></p>
+            <p id="mensagem-erro" class="error hidden"></p>
+        </div>
+        
+
+
+        <div class="weather hidden">
+            <div class="weather-header">
+                <div class="cache-buttons">
+                    <button id="refresh-cache" title="Atualizar Cache da Cidade Atual">
+                        <img src="image/refresh.png" alt="Atualizar Cache" />
+                    </button>
+                    <button id="delete-cache" title="Deletar Cache da Cidade Atual">
+                        <img src="image/delete.png" alt="Deletar Cache" />
+                    </button>
+                </div>
+                <h3 class="city">São José dos Campos</h3>
+            </div>
+
+            <img src="image/sun.png" class="weather-icon">
+            <h2 class="temp">25°c</h2>
+            
+            <div class="details">
+                <div class="col">
+                    <img src="image/humidity.png" alt="Umidade">
+                    <div>
+                        <p class="humidity">70%</p>
+                        <p>Umidade</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <img src="image/wind.png" alt="Vento">
+                    <div>
+                        <p class="wind">3 km/h</p>
+                        <p>Vento</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
