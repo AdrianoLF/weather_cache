@@ -24,6 +24,8 @@ class WeatherController {
       const response = await axios.get(url);
       const weatherData = response.data;
 
+      weatherData.createdAt = new Date(); 
+
       await cacheService.set(cacheKey, weatherData);
       const cachedData = await cacheService.getDataWithExpiration(cacheKey);
 
@@ -45,17 +47,22 @@ class WeatherController {
 
       res.status(500).json({ error: "Internal server error" });
     }
-  }
+  }  
 
-  async getAllCachedCities(req, res) {
+  async getAllCachedCities(_req, res) { 
     try {
       const cities = await cacheService.getAllCityData();
 
-      res.json({
-        message: "All cached Brazilian cities",
-        count: cities.length,
-        cities: cities,
-      });
+
+      console.log("DADOS DO CACHE SENDO ENVIADOS PARA O FRONTEND ");
+      console.log(cities);
+  
+
+      cities.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+
+      res.json(cities);
+      
     } catch (error) {
       console.error("Get all cities error:", error.message);
       res.status(500).json({ error: "Internal server error" });
@@ -83,44 +90,6 @@ class WeatherController {
     }
   }
 
-  /*async deleteKey(req, res) {
-    try {
-      const { key } = req.params;
-
-      if (!key) {
-        return res
-          .status(400)
-          .json({ error: "Cache key parameter is required" });
-      }
-
-      const exists = await cacheService.exists(key);
-      if (!exists) {
-        return res.status(404).json({
-          error: "Cache key not found",
-          key: key,
-        });
-      }
-
-      const success = await cacheService.delete(key);
-
-      if (success) {
-        res.json({
-          message: "Cache key deleted successfully",
-          status: "success",
-          key: key,
-        });
-      } else {
-        res.status(500).json({
-          error: "Failed to delete cache key",
-          status: "error",
-          key: key,
-        });
-      }
-    } catch (error) {
-      console.error("Delete key error:", error.message);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  }*/
 
   async deleteKey(req, res) {
     try {
@@ -132,12 +101,8 @@ class WeatherController {
           .json({ error: "Cache key parameter is required" });
       }
 
-      // A verificação de existência foi removida.
-      // Apenas tentamos deletar a chave diretamente.
       await cacheService.delete(key);
 
-      // Sempre retornamos uma mensagem de sucesso, pois o estado final é o desejado:
-      // a chave não está mais no cache.
       res.json({
         message: "Cache key successfully removed or did not exist",
         status: "success",

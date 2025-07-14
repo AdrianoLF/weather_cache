@@ -1,172 +1,196 @@
-const searchButton = document.getElementById('search-btn');
+const addCityBtn = document.getElementById('add-city-btn');
+const searchDiv = document.querySelector('.search');
 const cityInput = document.getElementById('cidade-input');
-const weatherDisplay = document.querySelector('.weather');
+const widgetsContainer = document.getElementById('widgets-container');
 const errorMessage = document.getElementById('mensagem-erro');
-const infoMessage = document.getElementById('mensagem-info');
-
-
-const tempElement = document.querySelector('.temp');
-const cityElement = document.querySelector('.city');
-const humidityElement = document.querySelector('.humidity');
-const windElement = document.querySelector('.wind');
-const weatherIconElement = document.querySelector('.weather-icon');
-
-//Botões do Cache
-const refreshCacheButton = document.getElementById('refresh-cache');
-const deleteCacheButton = document.getElementById('delete-cache');
+const widgetTemplate = document.getElementById('widget-template');
 
 const API_BASE_URL = 'http://localhost:3000';
 
-let currentCityName = '';
+let activeWidget = null; 
 
 /**
- * Função para buscas iniciadas pelo USUÁRIO. Ativa a animação CSS.
- * @param {string} city 
+ * Função para criar e adicionar um novo widget na tela.
+ * @param {boolean} silent
+ * @returns {HTMLElement | null}
  */
-const buscarClima = async (city) => {
-    weatherDisplay.classList.add('hidden');
-    errorMessage.classList.add('hidden');
 
-    infoMessage.textContent = `Buscando clima para ${city}...`;
-    infoMessage.classList.remove('show-and-fade');
-    void infoMessage.offsetWidth;
-    infoMessage.classList.add('show-and-fade');
-
-    try {
-        const data = await chamarApiClima(city);
-        setTimeout(() => {
-            atualizarUI(data);
-        }, 500);
-    } catch (error) {
-        alert('Cidade não encontrada. Por favor, tente novamente.');
-        infoMessage.classList.add('hidden');
+const addNewWidget = (silent = false) => {
+    if (widgetsContainer.childElementCount >= 4) {
+        if (!silent) showError('Você pode adicionar no máximo 4 cidades.');
+        return null;
     }
-};
 
-//Função para o carregamento INICIAL da página.
+    const widgetClone = widgetTemplate.content.cloneNode(true);
+    const newWidget = widgetClone.querySelector('.weather-widget');
+    widgetsContainer.appendChild(newWidget);
 
-const carregarClimaInicial = async () => {
-    try {
-        const data = await chamarApiClima('São José dos Campos');
-        atualizarUI(data);
-    } catch (error) {
-        exibirErro('Não foi possível carregar o clima inicial.');
+    if (!silent) {
+        activeWidget = newWidget;
+        searchDiv.classList.remove('hidden');
+        cityInput.focus();
+        cityInput.value = '';
     }
-};
+    
+    const deleteBtn = newWidget.querySelector('.delete-btn');
+    const refreshBtn = newWidget.querySelector('.refresh-btn');
 
-/**
- * Função central que faz a chamada à API.
- * @param {string} city - O nome da cidade.
- * @returns {Promise<object>} - Os dados do clima.
- */
-const chamarApiClima = async (city) => {
-    const response = await fetch(`${API_BASE_URL}/weather`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ city: city }),
+    deleteBtn.addEventListener('click', async () => {
+        const cityToDelete = newWidget.dataset.city;
+
+        if (cityToDelete) {
+            const cacheKey = gerarChaveCache(cityToDelete);
+            try {
+                await fetch(`${API_BASE_URL}/weather/cache/${cacheKey}`, { method: 'DELETE' });
+            } catch (error) {
+                console.error('Falha ao enviar requisição para deletar cache:', error);
+            }
+        }
+        
+        newWidget.remove();
+        addCityBtn.classList.remove('hidden'); // Garante que o botão de adicionar reapareça
     });
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Cidade não encontrada.');
-    }
+    refreshBtn.addEventListener('click', () => {
+        const city = newWidget.dataset.city;
+        if (city) {
+            fetchWeatherData(city, newWidget);
+        }
+    });
 
-    const responseData = await response.json();
-    return responseData.data;
+    return newWidget;
 };
 
 /**
- * Atualiza a interface do usuário com os dados recebidos da API.
- * @param {object} data - O objeto de dados do clima.
+ * Função principal que busca os dados e atualiza o widget ativo.
+ @param {string} city
+ @param {HTMLElement} widget 
  */
-const atualizarUI = (data) => {
+
+
+const fetchWeatherData = async (city, widget) => {
+    const cityElement = widget.querySelector('.city');
+    cityElement.textContent = 'Buscando...';
+
     try {
-        currentCityName = data.name;
+        const response = await fetch(`${API_BASE_URL}/weather`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ city }),
+        });
 
-        tempElement.textContent = `${Math.round(data.main.temp)}°c`;
-        cityElement.textContent = data.name;
-        humidityElement.textContent = `${data.main.humidity}%`;
-        windElement.textContent = `${Math.round(data.wind.speed)} km/h`;
-        
-        weatherIconElement.src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
-        weatherIconElement.alt = data.weather[0].description;
-        
-        weatherDisplay.classList.remove('hidden');
-        errorMessage.classList.add('hidden');
+        if (!response.ok) {
+            throw new Error('Cidade não encontrada');
+        }
+
+        const result = await response.json();
+        updateWidgetUI(result.data, widget);
+
     } catch (error) {
-        exibirErro('Não foi possível exibir os dados recebidos.');
+        showError(error.message);
+        widget.remove();
+    } finally {
+        if (widgetsContainer.childElementCount >= 4) {
+            addCityBtn.classList.add('hidden');
+        }
+        if(widget === activeWidget) {
+            searchDiv.classList.add('hidden');
+            activeWidget = null; //Reseta o widget ativo após a busca
+        }
     }
 };
 
 /**
- * Exibe uma mensagem de erro na interface.
- * @param {string} message - A mensagem de erro a ser exibida.
+ * Atualiza a interface de um widget específico com os dados recebidos.
+ * @param {object} data 
+ * @param {HTMLElement} widget
  */
-const exibirErro = (message) => {
+const updateWidgetUI = (data, widget) => {
+    widget.dataset.city = data.name;
+
+    widget.querySelector('.city').textContent = data.name;
+    widget.querySelector('.temp').textContent = `${Math.round(data.main.temp)}°c`;
+    widget.querySelector('.humidity').textContent = `${data.main.humidity}%`;
+    widget.querySelector('.wind').textContent = `${Math.round(data.wind.speed)} km/h`;
+    widget.querySelector('.weather-icon').src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+    widget.querySelector('.weather-icon').alt = data.weather[0].description;
+};
+
+/**
+ * Exibe uma mensagem de erro temporária.
+ * @param {string} message - A mensagem de erro.
+ */
+const showError = (message) => {
     errorMessage.textContent = message;
     errorMessage.classList.remove('hidden');
-    weatherDisplay.classList.add('hidden');
+    setTimeout(() => {
+        errorMessage.classList.add('hidden');
+    }, 3000);
 };
 
 /**
- * Gera a chave de cache a partir do nome da cidade.
+ * Gera a chave de cache a partir do nome da cidade (função auxiliar).
  * @param {string} city - O nome da cidade.
  * @returns {string} - A chave de cache formatada.
  */
 const gerarChaveCache = (city) => {
-    return `city_${city.replace(/\s+/g, '').toLowerCase()}`;
+    return `city_${city.replace(/\s+/g, '_').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`;
 };
 
 
-searchButton.addEventListener('click', () => {
-    const city = cityInput.value.trim();
-    if (city) {
-        buscarClima(city);
-        cityInput.value = '';
-        cityInput.focus();
-    } else {
-        alert('Por favor, digite o nome de uma cidade.');
+//CARREGAR WIDGETS DO CACHE
+const carregarWidgetsSalvos = async () => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/weather`);
+        if (!response.ok) throw new Error('Falha ao buscar cache do servidor.');
+
+        const cachedData = await response.json();
+        
+        widgetsContainer.innerHTML = ''; 
+
+        if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+            //Limita a 4 widgets, mesmo que o cache tenha mais
+            const widgetsToLoad = cachedData.slice(0, 4);
+            
+            //Para cada cidade no cache, cria e popula um widget
+            widgetsToLoad.forEach(cityData => {
+                const widgetElement = addNewWidget(true); 
+                if (widgetElement) {
+                   updateWidgetUI(cityData, widgetElement); 
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Erro ao carregar widgets do cache:", error);
+    } finally {
+        // Ajusta a visibilidade do botão de adicionar com base na quantidade carregada
+        if (widgetsContainer.childElementCount >= 4) {
+            addCityBtn.classList.add('hidden');
+        } else {
+            addCityBtn.classList.remove('hidden');
+        }
     }
+};
+
+
+addCityBtn.addEventListener('click', () => {
+    addNewWidget(false); // Chama a função para o usuário
 });
 
 cityInput.addEventListener('keyup', (event) => {
     if (event.key === 'Enter') {
-        searchButton.click();
+        const city = cityInput.value.trim();
+        if (city && activeWidget) {
+            fetchWeatherData(city, activeWidget);
+        } else if (!city && activeWidget) {
+            activeWidget.remove();
+            searchDiv.classList.add('hidden');
+        }
     }
 });
 
-refreshCacheButton.addEventListener('click', async () => {
-    if (!currentCityName) return;
-    await buscarClima(currentCityName);
-});
+const searchButton = document.getElementById('search-btn');
+if(searchButton) searchButton.style.display = 'none';
 
-
-deleteCacheButton.addEventListener('click', async () => {
-    // Se não houver cidade atual ou se já for a cidade base, não faz nada
-    if (!currentCityName || currentCityName === 'São José dos Campos') {
-        console.log("Nenhum cache para deletar ou já na cidade base.");
-        return;
-    }
-
-    const cityToDelete = currentCityName; // Guarda o nome da cidade a ser deletada
-    const cacheKey = gerarChaveCache(cityToDelete);
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/weather/cache/${cacheKey}`, { method: 'DELETE' });
-
-        console.log(`Requisição para deletar ${cacheKey} enviada.`);
-
-    } catch (error) {
-        console.error('Falha ao deletar o cache:', error);
-    } finally {
-
-        buscarClima('São José dos Campos');
-    }
-});
-
-// Executa quando a página HTML terminar de carregar.
-document.addEventListener('DOMContentLoaded', () => {
-    carregarClimaInicial();
-});
+//Executa  quando a página HTML terminar de carregar.
+document.addEventListener('DOMContentLoaded', carregarWidgetsSalvos);

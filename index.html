@@ -10,52 +10,52 @@
     <div class="container">
         <h1>Consulta de Clima</h1>
         
-        <div class="search">
-            <input type="text" id="cidade-input" placeholder="Digite o nome da cidade" />
-            <button id="search-btn"><img src="image/magnifier.png" alt="Buscar"></button>
+        <button id="add-city-btn">Adicionar Cidade</button>
+
+        <div class="search hidden">
+            <input type="text" id="cidade-input" placeholder="Digite o nome e pressione Enter" />
         </div>
 
-        <div class="massage-area">
-            <p id="mensagem-info" class="info hidden"></p>
+        <div class="message-area">
             <p id="mensagem-erro" class="error hidden"></p>
         </div>
-        
 
+        <div id="widgets-container"></div>
+    </div>
 
-        <div class="weather hidden">
-            <div class="weather-header">
-                <div class="cache-buttons">
-                    <button id="refresh-cache" title="Atualizar Cache da Cidade Atual">
-                        <img src="image/refresh.png" alt="Atualizar Cache" />
+    <template id="widget-template">
+        <div class="weather-widget">
+            <div class="widget-header">
+                <h3 class="city">Buscando...</h3>
+                <div class="widget-buttons">
+                    <button class="refresh-btn" title="Atualizar">
+                        <img src="image/refresh.png" alt="Atualizar" />
                     </button>
-                    <button id="delete-cache" title="Deletar Cache da Cidade Atual">
-                        <img src="image/delete.png" alt="Deletar Cache" />
+                    <button class="delete-btn" title="Deletar">
+                        <img src="image/delete.png" alt="Deletar" />
                     </button>
                 </div>
-                <h3 class="city">São José dos Campos</h3>
             </div>
-
-            <img src="image/sun.png" class="weather-icon">
-            <h2 class="temp">25°c</h2>
-            
+            <img src="image/sun.png" class="weather-icon" alt="Ícone do Clima">
+            <h2 class="temp">--°c</h2>
             <div class="details">
                 <div class="col">
                     <img src="image/humidity.png" alt="Umidade">
                     <div>
-                        <p class="humidity">70%</p>
+                        <p class="humidity">--%</p>
                         <p>Umidade</p>
                     </div>
                 </div>
                 <div class="col">
                     <img src="image/wind.png" alt="Vento">
                     <div>
-                        <p class="wind">3 km/h</p>
+                        <p class="wind">-- km/h</p>
                         <p>Vento</p>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </template>
 
     <script src="script.js"></script>
 </body>
