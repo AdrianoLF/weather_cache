@@ -85,28 +85,22 @@ class CacheService {
     }
   }
 
+
   async getAllCityData() {
-    try {
-      const keys = await this.#getKeysByPattern("city_*");
-      const cities = [];
+  try {
+    const keys = await this.#getKeysByPattern("city_*");
+    const citiesData = [];
 
-      for (const key of keys) {
-        const fullData = await this.getDataWithExpiration(key);
-        if (!fullData) continue;
-
-        const ttl = await this.#getCurrentTTL(key);
-        const cityName = this.#extractCityName(fullData.data, key);
-
-        cities.push({
-          city: cityName,
-          key: key,
-          data: fullData.data,
-          ttl: ttl.ttl,
-          expiresAt: fullData.expiresAt,
-        });
+    for (const key of keys) {
+      const fullData = await this.getDataWithExpiration(key);
+      
+      if (fullData && fullData.data) {
+        citiesData.push(fullData.data);
       }
+    }
 
-      return cities;
+    return citiesData;
+
     } catch (error) {
       console.error("Get all cities error:", error);
       return [];

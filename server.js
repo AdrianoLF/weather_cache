@@ -1,11 +1,13 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require('cors');
 const swaggerUi = require("swagger-ui-express");
 const YAML = require("yamljs");
 const redisConfig = require("./src/config/redis");
 const weatherRoutes = require("./src/routes/weather");
 
 const app = express();
+app.use(cors()); // <-- 2. VERIFIQUE SE ESTA LINHA ESTÁ AQUI, ANTES DAS ROTAS
 const PORT = process.env.PORT || 3000;
 
 const swaggerDocument = YAML.load("./openapi.yaml");

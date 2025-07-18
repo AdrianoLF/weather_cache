@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Clima nas Cidades</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Consulta de Clima</h1>
+        
+        <button id="add-city-btn">Adicionar Cidade</button>
+
+        <div class="search hidden">
+            <input type="text" id="cidade-input" placeholder="Digite o nome e pressione Enter" />
+        </div>
+
+        <div class="message-area">
+            <p id="mensagem-erro" class="error hidden"></p>
+        </div>
+
+        <div id="widgets-container"></div>
+    </div>
+
+    <template id="widget-template">
+        <div class="weather-widget">
+            <div class="widget-header">
+                <h3 class="city">Buscando...</h3>
+                <div class="widget-buttons">
+                    <button class="refresh-btn" title="Atualizar">
+                        <img src="image/refresh.png" alt="Atualizar" />
+                    </button>
+                    <button class="delete-btn" title="Deletar">
+                        <img src="image/delete.png" alt="Deletar" />
+                    </button>
+                </div>
+            </div>
+            <img src="image/sun.png" class="weather-icon" alt="Ícone do Clima">
+            <h2 class="temp">--°c</h2>
+            <div class="details">
+                <div class="col">
+                    <img src="image/humidity.png" alt="Umidade">
+                    <div>
+                        <p class="humidity">--%</p>
+                        <p>Umidade</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <img src="image/wind.png" alt="Vento">
+                    <div>
+                        <p class="wind">-- km/h</p>
+                        <p>Vento</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>
